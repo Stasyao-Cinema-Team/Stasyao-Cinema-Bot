@@ -2,25 +2,18 @@ version: '3.8'
 
 services:
   bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      - API_TOKEN=${API_TOKEN}
-      - PROVIDER_TOKEN=${PROVIDER_TOKEN}
-    depends_on:
-      - db
-
-  db:
-    build:
-      context: .
-      dockerfile: Dockerfile.db
-    environment:
-      - POSTGRES_DB=purchases
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+    build: .
+    env_file:
+      - .env
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - ./data:/app/data
+    restart: unless-stopped
 
-volumes:
-  db_data:
+  web:
+    build: .
+    command: bash -c "python init_db.py && python web.py"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

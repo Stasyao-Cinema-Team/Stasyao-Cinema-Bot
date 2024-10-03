@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Платежи</title>
+</head>
+<body>
+    <h1>Список платежей</h1>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Телефон</th>
+            <th>Логин</th>
+            <th>Время</th>
+            <th>Билеты</th>
+            <th>Скриншот</th>
+        </tr>
+        {% for payment in payments %}
+        <tr>
+            <td>{{ payment[0] }}</td>
+            <td>{{ payment[1] }}</td>
+            <td>{{ payment[2] }}</td>
+            <td>{{ payment[3] }}</td>
+            <td>{{ payment[4] }}</td>
+            <td><a href="{{ url_for('serve_static', filename=payment[5].split('/')[-1]) }}" target="_blank">Скриншот</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="{{ url_for('logout') }}">Выйти</a>
+</body>
+</html>

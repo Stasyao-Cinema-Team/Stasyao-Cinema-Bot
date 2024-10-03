@@ -1,21 +1,17 @@
-# Dockerfile для бота
+# Используем официальный образ Python
 FROM python:3.9-slim
 
-# Установка зависимостей
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Устанавливаем рабочую директорию
+WORKDIR /app
 
-# Установка Python зависимостей
+# Копируем зависимости
 COPY requirements.txt .
+
+# Устанавливаем зависимости
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копирование исходного кода
+# Копируем весь проект
 COPY . .
 
-# Переменные окружения
-ENV API_TOKEN=${API_TOKEN}
-ENV PROVIDER_TOKEN=${PROVIDER_TOKEN}
-
-# Запуск бота
+# Запускаем бота
 CMD ["python", "bot.py"]

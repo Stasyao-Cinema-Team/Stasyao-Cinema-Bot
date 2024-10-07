@@ -13,7 +13,7 @@ from app.keyboards.generator import event_keyboard_markup
 from app.states.user import state_handler
 from app.handlers.admin import check_tg_user_id_admin, admin
 from app.types.type import OrderTypes
-from app.utils import get_homepage_datas, get_allowed_commands, parse_command, send_data_to_user
+from app.utils import get_homepage_datas, get_allowed_commands, parse_command, send_data_to_user, prepare_user
 
 router: Router = Router(name=__name__)
 db = Database()
@@ -21,6 +21,7 @@ db = Database()
 
 @router.message(CommandStart())
 async def start(message: Message, state: FSMContext):
+    await prepare_user(message.from_user)
     with db.context_cursor() as cursor:
         events = cast_data(cursor.execute(
             select(Events).

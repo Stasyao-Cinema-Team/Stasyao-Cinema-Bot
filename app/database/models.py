@@ -59,7 +59,7 @@ class Actions(Base):
 
 class Ordering(Base):
     __tablename__ = "Ordering"
-    entity_id = Column(TEXT, nullable=False, unique=True)
+    entity_id = Column(TEXT, nullable=False, unique=True, primary_key=True)
     order = Column(TEXT, nullable=False)
 
 

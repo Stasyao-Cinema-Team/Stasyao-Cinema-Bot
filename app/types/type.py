@@ -1,6 +1,3 @@
-from attr import dataclass
-
-
 class UserTypes:
     text = 'text'
     animation = 'animation'

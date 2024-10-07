@@ -32,7 +32,7 @@ class Handlers:
 
 __handlers__ = Handlers(
     routers=(
-        user_router,
         admin_router,
+        user_router,
     )
 )

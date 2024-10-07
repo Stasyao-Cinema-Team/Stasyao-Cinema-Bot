@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 from app.database.connection import (
     Database,
@@ -11,6 +11,7 @@ from app.database.connection import (
     Data,
     cast_data,
 )
+from app.database.models import Ordering
 from app.logger.logger import Logger
 
 db = Database()
@@ -871,5 +872,65 @@ def get_datas(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Data} data. Return All.")
+
+        return cast_data(cursor.execute(stmt).fetchall())
+
+
+def get_ordering(
+        entity_id: Optional[str] = None,
+        order: Optional[str] = None,
+) -> Ordering:
+    no_data = True
+    with db.context_cursor() as cursor:
+        stmt = select(Ordering)
+        if isinstance(entity_id, str):
+            stmt = stmt.where(Ordering.entity_id == entity_id)
+            no_data = False
+        if isinstance(order, list):
+            stmt = stmt.where(Ordering.order == order)
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for fetching {Ordering} data.")
+            stmt = stmt.where(True == False)
+
+    data = cursor.execute(stmt).fetchone()
+    try:
+        return data[0]
+    except TypeError:
+        return Ordering()
+
+
+def get_orderings(
+        entity_id: Optional[
+            Union[
+                str,
+                List[str],
+                Tuple[str]
+            ]
+        ] = None,
+        order: Optional[
+            Union[
+                str,
+                List[str],
+                Tuple[str],
+            ]
+        ] = None,
+) -> Union[
+    Tuple[Ordering],
+    Tuple[None],
+    List[Ordering],
+    List[None]
+]:
+    no_data = True
+    with db.context_cursor() as cursor:
+        stmt = select(Ordering)
+        if entity_id is not None:
+            stmt = stmt.where(Ordering.entity_id.in_((entity_id,) if isinstance(entity_id, str) else entity_id))
+            no_data = False
+        if order is not None:
+            stmt = stmt.where(Ordering.order.in_((order,) if isinstance(order, str) else order))
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for fetching {Ordering} data.")
 
         return cast_data(cursor.execute(stmt).fetchall())

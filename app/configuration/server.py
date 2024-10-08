@@ -43,11 +43,6 @@ class Server:
             cls.__instance = super(Server, cls).__new__(cls)
         return cls.__instance
 
-    # def __call__(self, *args, **kwargs):
-    #     if not self.__instance:
-    #         self.__instance = super(Server, self).__call__(*args, **kwargs)
-    #     return self.__instance
-
     def get_bot_dispatcher(self):
         """
         Get method to return Server dispatcher class.
@@ -86,7 +81,7 @@ class Server:
     @staticmethod
     @logger.time_it_debug(description="Prepearing aiogram.Bot server's instance")
     def __prepeare_bot(token: str) -> Bot:
-        return Bot(token=token, default=DefaultBotProperties(parse_mode="HTML"))
+        return Bot(token=token, default=DefaultBotProperties(parse_mode="Markdown"))
 
     @staticmethod
     @logger.time_it_debug(

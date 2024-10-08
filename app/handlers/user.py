@@ -7,13 +7,13 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 
 from app.database.connection import Database, cast_data
-from app.database.get import get_event, get_action, get_orderings, get_ordering, get_data
+from app.database.get import get_event, get_action, get_ordering, get_data
 from app.database.models import Events
 from app.keyboards.generator import event_keyboard_markup
 from app.states.user import state_handler
 from app.handlers.admin import check_tg_user_id_admin, admin
 from app.types.type import OrderTypes
-from app.utils import get_homepage_datas, get_allowed_commands, parse_command, send_data_to_user, prepare_user
+from app.utils import get_allowed_commands, parse_command, send_data_to_user, prepare_user, text_templater
 
 router: Router = Router(name=__name__)
 db = Database()
@@ -21,7 +21,8 @@ db = Database()
 
 @router.message(CommandStart())
 async def start(message: Message, state: FSMContext):
-    await prepare_user(message.from_user)
+    if await prepare_user(message):
+        return
     with db.context_cursor() as cursor:
         events = cast_data(cursor.execute(
             select(Events).
@@ -36,6 +37,7 @@ async def start(message: Message, state: FSMContext):
     for element in order.split(':'):
         await send_data_to_user(
             message,
+            state,
             get_data(id=int(element), active=True, system=True),
             keyboard
         )
@@ -43,6 +45,8 @@ async def start(message: Message, state: FSMContext):
 
 @router.message(Command(compile(r".*")))
 async def commands(message: Message, state: FSMContext):
+    if await prepare_user(message):
+        return
     allowed_commands = await get_allowed_commands()
     command = parse_command(message).command
     if await check_tg_user_id_admin(message.from_user.id) and command == 'admin':
@@ -69,4 +73,6 @@ async def commands(message: Message, state: FSMContext):
 
 @router.message()
 async def common_message(message: Message, state: FSMContext):
+    if await prepare_user(message):
+        return
     return await state_handler(message=message, state=state)

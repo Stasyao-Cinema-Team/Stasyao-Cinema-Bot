@@ -5,7 +5,8 @@ from contextlib import contextmanager
 
 from sqlalchemy import *
 from sqlalchemy.engine.row import Row
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.database.models import *
 from app.logger.logger import Logger
@@ -19,14 +20,14 @@ class Database:
 
     __path: str
     __engine: Engine
-    __connection: Connection
+    __sessionmaker: sessionmaker
 
     @logger.time_it_info(description="Initialise database connection")
     def __init__(self) -> None:
         if not self.__initialised:
-            self.__path = getenv("DB_PATH", "local.db")
+            self.__path = getenv("DB_PATH", "prod.db")
             self.__engine = self.__create_engine(path=self.__path)
-            self.__connection = self.__create_connection(engine=self.__engine)
+            self.__sessionmaker = self.__create_sessionmaker(engine=self.__engine)
             self.__initialised = True
 
     def __new__(self, *args, **kwargs):
@@ -40,16 +41,21 @@ class Database:
             exc_val: Optional[BaseException],
             exc_tb: Optional[TracebackType],
     ) -> bool:
-        self.__connection.close()
+        self.__engine.dispose()
         return False
 
-    def get_connection(self) -> Connection:
-        return self.__connection
+    def get_engine(self) -> Engine:
+        return self.__engine
+
+    def get_sessionmaker(self) -> sessionmaker:
+        return self.__sessionmaker
+
+    def get_session(self) -> Session:
+        return self.__sessionmaker()
 
     @contextmanager
     def context_cursor(self) -> Session:
-        connection = self.get_connection()
-        with Session(connection, expire_on_commit=False) as session:
+        with self.get_session() as session:
             try:
                 yield session
             except Exception as e:
@@ -57,22 +63,26 @@ class Database:
                 logger.exception(e)
             else:
                 session.commit()
+            finally:
+                session.close()
 
     @staticmethod
-    @logger.time_it_debug(description="Connect to database")
+    @logger.time_it_debug(description="Create database engine")
     def __create_engine(path) -> Engine:
         return create_engine(
             url=f"sqlite:///{path}",
             hide_parameters=False,
-            poolclass=SingletonThreadPool,
-            future=True,
-            echo=True,
+            poolclass=StaticPool,
+            echo=True if getenv("LOG_LEVEL") else False,
         )
 
     @staticmethod
-    @logger.time_it_debug(description="Connect to database")
-    def __create_connection(engine) -> Connection:
-        return engine.connect()
+    @logger.time_it_debug(description="Create database session")
+    def __create_sessionmaker(engine: Engine) -> sessionmaker:
+        return sessionmaker(
+            bind=engine,
+            expire_on_commit=False,
+        )
 
 
 def cast_data(data: List[Row]):

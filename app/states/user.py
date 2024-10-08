@@ -1,20 +1,19 @@
-from re import split
-
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from app.database.get import get_datas, get_user, get_orderings, get_ordering, get_data, get_events
-from app.database.set import set_data
+from app.database.get import get_datas, get_ordering, get_data, get_events
 from app.handlers.admin import admin_state_handler
 from app.keyboards.generator import data_keyboard_markup
 from app.types.type import SystemTypes, UserTypes, OrderTypes
-from app.utils import get_next_order, save_content_by_filters, send_data_to_user
+from app.utils import get_next_order, save_content_by_filters, send_data_to_user, prepare_user
 from app.logger.logger import Logger
 
 logger = Logger()
 
 
 async def state_replier(message: Message, state: FSMContext):
+    if await prepare_user(message):
+        return
     current_state = await state.get_state()
     event_id, action_id = current_state.split(':')
     order = get_ordering(entity_id=f"{OrderTypes.data}:{action_id}").order
@@ -23,12 +22,15 @@ async def state_replier(message: Message, state: FSMContext):
     for element in order.split(':'):
         await send_data_to_user(
             message,
+            state,
             get_data(id=int(element), active=True, system=True),
             keyboard
         )
 
 
 async def state_handler(message: Message, state: FSMContext):
+    if await prepare_user(message):
+        return
     from app.handlers.user import start
     current_state = await state.get_state()
     if not current_state:
@@ -74,23 +76,37 @@ async def state_handler(message: Message, state: FSMContext):
         filters.append(UserTypes.location)
 
     if message.content_type in filters:
-        await save_content_by_filters(message=message, filters=filters, action_id=int(action_id))
-        if next_action := await get_next_order(OrderTypes.action, int(event_id), int(action_id)):
-            await state.set_state(f"{event_id}:{next_action}")
-        else:
-            await message.answer(
-                f"Necessary action has ended. Return to the home page.\n\n"
-                f"Необходимые действия закончились. Возвращаемся на домашнюю страницу."
-            )
-            return await start(message, state)
+        if await save_content_by_filters(message=message, filters=filters, action_id=int(action_id)):
+            if next_action:=await get_next_order(OrderTypes.action, int(event_id), int(action_id)):
+                await state.set_state(f"{event_id}:{next_action}")
+            else:
+                await message.answer(
+                    f"Necessary action has ended. Return to the home page.\n"
+                    f"\n"
+                    f"\n"
+                    f"Необходимые действия закончились. Возвращаемся на домашнюю страницу."
+                )
+                return await start(message, state)
+        # else:
+        #     await message.reply(
+        #         f"Error occurred.\n"
+        #         f"Handled content type ({message.content_type}) is not match expected filters ({filters}).\n"
+        #         f"Try again.\n"
+        #         f"\n"
+        #         f"\n"
+        #         f"Произошла ошибка.\n"
+        #         f"Полученный тип сообщения ({message.content_type}) не совпадает с ожидаемыми фильтрами ({filters}).\n"
+        #         f"Попробуйте еще раз."
+        #     )
+    return await state_replier(message, state)
 
-        return await state_replier(message, state)
-
-    await message.reply(
-        f"Error occurred.\n"
-        f"Handled content type ({message.content_type}) is not match expected filters ({filters}).\n"
-        f"Try again.\n\n"
-        f"Произошла ошибка.\n"
-        f"Полученный тип сообщения ({message.content_type}) не совпадает с ожидаемыми фильтрами ({filters}).\n"
-        f"Попробуйте еще раз."
-    )
+    # await message.reply(
+    #     f"Error occurred.\n"
+    #     f"Handled content type ({message.content_type}) is not match expected filters ({filters}).\n"
+    #     f"Try again.\n"
+    #     f"\n"
+    #     f"\n"
+    #     f"Произошла ошибка.\n"
+    #     f"Полученный тип сообщения ({message.content_type}) не совпадает с ожидаемыми фильтрами ({filters}).\n"
+    #     f"Попробуйте еще раз."
+    # )

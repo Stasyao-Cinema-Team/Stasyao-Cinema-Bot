@@ -7,6 +7,7 @@ from app.database.connection import (
     Admins,
     Actions,
     Data,
+    insert
 )
 from app.logger.logger import Logger
 
@@ -18,15 +19,20 @@ def set_user(
     tg_uname: Union[str, Users.tg_uname],
     tg_id: Union[int, Users.tg_id],
 ) -> Users:
+    no_data = True
     with db.context_cursor() as cursor:
-        user = Users(
-            tg_uname=tg_uname,
-            tg_id=tg_id,
-        )
-        cursor.add(user)
-        cursor.flush()
-        cursor.refresh(user)
-        return user
+        stmt = insert(Users)
+        if isinstance(tg_uname, str):
+            stmt = stmt.values(tg_uname=tg_uname)
+            no_data = False
+        if isinstance(tg_id, int):
+            stmt = stmt.values(tg_id=tg_id)
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for setting {Users} data.")
+            return
+
+        cursor.execute(stmt)
 
 
 def set_admin(
@@ -34,16 +40,23 @@ def set_admin(
     create_uid: Union[int, Admins.create_uid, Users.id],
     active: Union[bool, Admins.active] = True,
 ) -> Admins:
+    no_data = True
     with db.context_cursor() as cursor:
-        admin = Admins(
-            user_id=user_id,
-            create_uid=create_uid,
-            active=active,
-        )
-        cursor.add(admin)
-        cursor.flush()
-        cursor.refresh(admin)
-        return admin
+        stmt = insert(Admins)
+        if isinstance(user_id, int):
+            stmt = stmt.values(user_id=user_id)
+            no_data = False
+        if isinstance(create_uid, int):
+            stmt = stmt.values(create_uid=create_uid)
+            no_data = False
+        if isinstance(active, bool):
+            stmt = stmt.values(active=active)
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for setting {Admins} data.")
+            return
+
+        cursor.execute(stmt)
 
 
 def set_event(
@@ -51,16 +64,23 @@ def set_event(
     create_uid: Union[int, Events.create_uid, Users.id],
     active: Union[bool, Events.active] = True,
 ) -> Events:
+    no_data = True
     with db.context_cursor() as cursor:
-        event = Events(
-            name=name,
-            create_uid=create_uid,
-            active=active,
-        )
-        cursor.add(event)
-        cursor.flush()
-        cursor.refresh(event)
-        return event
+        stmt = insert(Events)
+        if isinstance(name, str):
+            stmt = stmt.values(name=name)
+            no_data = False
+        if isinstance(create_uid, int):
+            stmt = stmt.values(create_uid=create_uid)
+            no_data = False
+        if isinstance(active, bool):
+            stmt = stmt.values(active=active)
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for setting {Events} data.")
+            return
+
+        cursor.execute(stmt)
 
 
 def set_action(
@@ -69,17 +89,26 @@ def set_action(
     create_uid: Union[int, Actions.create_uid, Users.id],
     active: Union[bool, Actions.active] = True,
 ) -> Actions:
+    no_data = True
     with db.context_cursor() as cursor:
-        action = Actions(
-            name=name,
-            event_id=event_id,
-            create_uid=create_uid,
-            active=active,
-        )
-        cursor.add(action)
-        cursor.flush()
-        cursor.refresh(action)
-        return action
+        stmt = insert(Actions)
+        if isinstance(name, str):
+            stmt = stmt.values(name=name)
+            no_data = False
+        if isinstance(event_id, int):
+            stmt = stmt.values(event_id=event_id)
+            no_data = False
+        if isinstance(create_uid, int):
+            stmt = stmt.values(create_uid=create_uid)
+            no_data = False
+        if isinstance(active, bool):
+            stmt = stmt.values(active=active)
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for setting {Actions} data.")
+            return
+
+        cursor.execute(stmt)
 
 
 def set_data(
@@ -90,16 +119,29 @@ def set_data(
     system: Optional[Union[bool, Data.system]] = False,
     active: Optional[Union[bool, Data.active]] = True,
 ) -> Data:
+    no_data = True
     with db.context_cursor() as cursor:
-        data = Data(
-            action_id=action_id,
-            create_uid=create_uid,
-            system=system,
-            type=type,
-            value=value,
-            active=active,
-        )
-        cursor.add(data)
-        cursor.flush()
-        cursor.refresh(data)
-        return data
+        stmt = insert(Data)
+        if isinstance(action_id, int):
+            stmt = stmt.values(action_id=action_id)
+            no_data = False
+        if isinstance(create_uid, int):
+            stmt = stmt.values(create_uid=create_uid)
+            no_data = False
+        if isinstance(type, str):
+            stmt = stmt.values(type=type)
+            no_data = False
+        if isinstance(value, str):
+            stmt = stmt.values(value=value)
+            no_data = False
+        if isinstance(system, bool):
+            stmt = stmt.values(system=system)
+            no_data = False
+        if isinstance(active, bool):
+            stmt = stmt.values(active=active)
+            no_data = False
+        if no_data:
+            logger.warn(f"No data given for setting {Actions} data.")
+            return
+
+        cursor.execute(stmt)

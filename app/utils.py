@@ -7,19 +7,60 @@ from typing import Union, List, Tuple, Optional
 
 from aiogram.filters import CommandObject
 from aiogram.fsm.context import FSMContext
-from aiogram.types import User, Message, FSInputFile, ReplyKeyboardMarkup, KeyboardButton
-from aiogram import Bot
+from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from jinja2 import Template
 
-from app.database.get import get_user, get_event, get_action, get_datas, get_actions, get_events, get_ordering
-from app.database.models import Data, Events, Actions
+from app.database.get import get_user, get_event, get_action, get_datas, get_actions, get_events, get_ordering, \
+    get_data, get_orderings
+from app.database.models import Data, Events, Actions, Users, Ordering, Admins
 from app.database.set import set_user, set_data
+from app.database.update import update_user
+from app.logger.logger import Logger
 from app.types.type import SystemTypes, UserTypes, OrderTypes
 
 
-async def prepare_user(tg_user: User):
-    user = get_user(tg_id=tg_user.id)
-    if not user:
-        set_user(tg_uname=tg_user.username, tg_id=tg_user.id)
+logger = Logger()
+
+
+@logger.time_it_debug(description="Prepairing user")
+async def prepare_user(message: Message):
+    system_user = get_user(tg_id=message.from_user.id)
+    if await tg_username_check(message=message, system_user=system_user):
+        return True
+    if system_user and system_user.tg_uname != message.from_user.username:
+        await message.answer(
+            f"Looks like you changed your *Telegram username*.\n"
+            f"Updating your previous username (_{system_user.tg_uname}_) "
+            f"to actual username (_{message.from_user.username}_).\n"
+            f"\n"
+            f"\n"
+            f"Вы похоже изменили *имя пользователя Telegram*.\n"
+            f"Обновляем ваш старое имя пользователя (_{system_user.tg_uname}_) "
+            f"на актуальное имя пользователя (_{message.from_user.username}_)"
+        )
+        update_user(where_id=system_user.id, tg_uname=message.from_user.username)
+    if not system_user:
+        set_user(tg_uname=message.from_user.username, tg_id=message.from_user.id)
+
+
+async def tg_username_check(message: Message, system_user: Users):
+    if not message.from_user.username:
+        await message.answer(
+            "You haven't got *Telegram username* installed yet.\n"
+            "Install it and try again.\n"
+            "Installation Manual:\n"
+            "*Android*: https://t.me/Asafev_fanzone_SPb/1/26969?single\n"
+            "*IOS*: https://t.me/Asafev_fanzone_SPb/1/26972?single\n"
+            "\n"
+            "\n"
+            "У вас не установлено *имя пользователя Telegram*.\n"
+            "Пожалуйста, установите его и попробуйте снова.\n"
+            "Инструкция по установке:\n"
+            "*Android*: https://t.me/Asafev_fanzone_SPb/1/26969?single\n"
+            "*IOS*: https://t.me/Asafev_fanzone_SPb/1/26972?single"
+        )
+        return True
+    return False
 
 
 async def get_homepage_datas(type: Optional[Union[List[str], Tuple[str]]] = None):
@@ -63,13 +104,24 @@ def parse_command(message: Message) -> CommandObject:
     )
 
 
+@logger.time_it_debug(description="Sending data to user")
 async def send_data_to_user(
         message: Message,
+        state: FSMContext,
         data: Data,
         keyboard: Optional[ReplyKeyboardMarkup] = None
 ) -> None:
+    if keyboard is None:
+        keyboard = ReplyKeyboardRemove()
     if data.type == UserTypes.text:
-        await message.answer(text=data.value, reply_markup=keyboard)
+        await message.answer(
+            text=await text_templater(
+                message,
+                state,
+                data
+            ),
+            reply_markup=keyboard
+        )
         # await SendMessage(bot, chat_id=message.chat.id, text=data.value)
     if data.type == UserTypes.animation:
         await message.answer_animation(animation=FSInputFile(data.value), reply_markup=keyboard)
@@ -118,7 +170,7 @@ async def send_data_to_user(
         #                    longitude=float(data.value.split(':')[1]))
 
 
-async def regex_search_by_text_filters(message: Message, filters: List[str]):
+async def regex_check_text_by_filters(message: Message, filters: List[str]):
     founded_filters = list(
         filter(
             compile(r"text\(.*\)").match,
@@ -127,10 +179,12 @@ async def regex_search_by_text_filters(message: Message, filters: List[str]):
     )
     founded_filters = [f.replace('text(', '')[:-1] for f in founded_filters]
     for i in founded_filters:
-        if data := fullmatch(i, message.text):
-            return data.group()
+        if fullmatch(i, message.text):
+            return True
+    return False
 
 
+@logger.time_it_debug(description="Downloading file")
 async def download_file(message: Message, file_id: str) -> Path:
     path = Path(
         getenv("DOWNLOAD_PATH", './data/'),
@@ -180,29 +234,29 @@ async def get_previous_state():
     pass
 
 
+@logger.time_it_debug(description="Saving content by filters")
 async def save_content_by_filters(
         message: Message,
         filters: List[UserTypes],
         action_id: Union[int, Actions.id]
 ):
     user = get_user(tg_id=message.from_user.id)
+    saved = False
     match message.content_type:
         case UserTypes.text:
-            if UserTypes.text in filters:
-                data = await regex_search_by_text_filters(
-                    message,
-                    filters
-                )
+            if UserTypes.text in filters and await regex_check_text_by_filters(message, filters):
                 set_data(
                     action_id=action_id, create_uid=user.id,
-                    type=message.content_type, value=data
+                    type=message.content_type, value=message.md_text
                 )
+                saved = True
         case UserTypes.poll:
             if UserTypes.poll in filters:
                 set_data(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{message.chat.id}:{message.message_id}"
                 )
+                saved = True
         case UserTypes.contact:
             if UserTypes.contact in filters:
                 contact = message.contact
@@ -211,6 +265,7 @@ async def save_content_by_filters(
                     type=message.content_type,
                     value=f"{contact.phone_number}:{contact.first_name}:{contact.last_name}"
                 )
+                saved = True
         case UserTypes.location:
             if UserTypes.location in filters:
                 location = message.location
@@ -219,15 +274,21 @@ async def save_content_by_filters(
                     type=message.content_type,
                     value=f"{location.latitude}:{location.longitude}"
                 )
+                saved = True
         case UserTypes.photo:
             if UserTypes.photo in filters:
-                photos = [photo.file_id for photo in message.photo]
-                downloads = [await download_file(message, photo) for photo in photos]
-                for download in downloads:
-                    set_data(
-                        action_id=action_id, create_uid=user.id,
-                        type=message.content_type, value=f"{download}"
-                    )
+                photo = None
+                for _photo in message.photo:
+                    if photo is None:
+                        photo = _photo
+                    if photo.file_size < _photo.file_size:
+                        photo = _photo
+                photo = await download_file(message, photo.file_id)
+                set_data(
+                    action_id=action_id, create_uid=user.id,
+                    type=message.content_type, value=f"{photo}"
+                )
+                saved = True
         case UserTypes.animation:
             if UserTypes.animation in filters:
                 animation = await download_file(message, message.animation.file_id)
@@ -235,6 +296,7 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{animation}"
                 )
+                saved = True
         case UserTypes.audio:
             if UserTypes.audio in filters:
                 audio = await download_file(message, message.audio.file_id)
@@ -242,6 +304,7 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{audio}"
                 )
+                saved = True
         case UserTypes.document:
             if UserTypes.document in filters:
                 document = await download_file(message, message.document)
@@ -249,6 +312,7 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{document}"
                 )
+                saved = True
         case UserTypes.sticker:
             if UserTypes.sticker in filters:
                 sticker = await download_file(message, message.sticker.file_id)
@@ -256,6 +320,7 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{sticker}"
                 )
+                saved = True
         case UserTypes.video:
             if UserTypes.video in filters:
                 video = await download_file(message, message.video.file_id)
@@ -263,6 +328,7 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{video}"
                 )
+                saved = True
         case UserTypes.voice:
             if UserTypes.voice in filters:
                 voice = await download_file(message, message.voice.file_id)
@@ -270,6 +336,8 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{voice}"
                 )
+                saved = True
+    return saved
 
 
 async def split_buttons(buttons: List[KeyboardButton], _split_by):
@@ -277,3 +345,66 @@ async def split_buttons(buttons: List[KeyboardButton], _split_by):
     for i in range(0, len(buttons), _split_by):
         result.append(buttons[i:i + _split_by])
     return result
+
+
+async def text_templater(message: Message, state: FSMContext, data: Union[str, Data]):
+    try:
+        template = Template(data.value)
+    except Exception as e:
+        await message.answer(
+            f"Runtime Junja2 module error while performing text completion.\n"
+            f"\n"
+            f"\n"
+            f"Произошла ошибка Jinja2 во время выполнения заполнения текста.\n"
+            f"\n"
+            f"\n"
+            f"```\n"
+            f"{e.__str__()}\n"
+            f"```"
+        )
+        return data
+    allowed_functions = [
+        get_event,
+        get_events,
+        get_action,
+        get_actions,
+        get_data,
+        get_datas,
+        get_ordering,
+        get_orderings,
+        len,
+        sum,
+        enumerate,
+        range,
+        min,
+        max,
+        isinstance,
+        type,
+        round,
+        all,
+        any,
+        getattr,
+        hasattr,
+        str,
+        int,
+        list,
+        dict,
+    ]
+
+    for func in allowed_functions:
+        template.globals[func.__name__] = func
+
+    return template.render(
+        user=message.from_user,
+        input_text=message.md_text,
+        state=await state.get_state(),
+        UserTypes=UserTypes,
+        SystemTypes=SystemTypes,
+        OrderTypes=OrderTypes,
+        Users=Users,
+        Admins=Admins,
+        Events=Events,
+        Actions=Actions,
+        Data=Data,
+        Ordering=Ordering,
+    )

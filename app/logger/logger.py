@@ -193,7 +193,7 @@ class Logger:
                         response = func(*args, **kwargs)
                         __timer_end = perf_counter_ns()
                         cls._logger.debug(
-                            f"{description} is done. ({(__timer_end - __timer_start) / 1_000_000:.4f} ms)",
+                            f"{description} is done. {'[' + response.__str__() + '] ' if response else ''}({(__timer_end - __timer_start) / 1_000_000:.4f} ms)",
                             extra={
                                 "special_name": f"{func.__module__}.{func.__name__}"
                             },

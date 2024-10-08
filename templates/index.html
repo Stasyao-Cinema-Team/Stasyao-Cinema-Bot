@@ -7,6 +7,10 @@
 </head>
 <body>
     <h1>Список платежей</h1>
+    <h2>Общее количество купленных билетов: {{ total_tickets }}</h2>
+    <form action="{{ url_for('export_to_excel') }}" method="post">
+        <button type="submit">Выгрузить данные в Excel</button>
+    </form>
     <table border="1">
         <tr>
             <th>ID</th>
@@ -14,6 +18,7 @@
             <th>Логин</th>
             <th>Время</th>
             <th>Билеты</th>
+            <th>Был с нами раньше</th>
             <th>Скриншот</th>
         </tr>
         {% for payment in payments %}
@@ -23,7 +28,8 @@
             <td>{{ payment[2] }}</td>
             <td>{{ payment[3] }}</td>
             <td>{{ payment[4] }}</td>
-            <td><a href="{{ url_for('serve_static', filename=payment[5].split('/')[-1]) }}" target="_blank">Скриншот</a></td>
+            <td>{{ payment[5] }}</td>
+            <td>{{ payment[6]|safe }}</td>
         </tr>
         {% endfor %}
     </table>

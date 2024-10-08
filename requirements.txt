@@ -1,5 +1,7 @@
 pytz
 flask-Login
-
+Pillow
 aiogram==2.25.1
 flask
+python-dotenv
+openpyxl

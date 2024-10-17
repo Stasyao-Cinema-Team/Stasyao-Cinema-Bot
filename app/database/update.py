@@ -1,14 +1,13 @@
-from typing import Union, Optional
+from typing import Optional
+from typing import Union
 
-from app.database.connection import (
-    Database,
-    Users,
-    Events,
-    Admins,
-    Actions,
-    Data,
-    update
-)
+from app.database.connection import Actions
+from app.database.connection import Admins
+from app.database.connection import Data
+from app.database.connection import Database
+from app.database.connection import Events
+from app.database.connection import update
+from app.database.connection import Users
 from app.logger.logger import Logger
 
 db = Database()

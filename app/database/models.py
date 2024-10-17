@@ -1,18 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy.dialects.sqlite import INTEGER, TEXT, TIMESTAMP, BOOLEAN
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy.dialects.sqlite import BOOLEAN
+from sqlalchemy.dialects.sqlite import INTEGER
+from sqlalchemy.dialects.sqlite import TEXT
+from sqlalchemy.dialects.sqlite import TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 metadata = Base.metadata
-
-
-# class Types(Base):
-#     __tablename__ = "Types"
-#     id = Column(INTEGER, primary_key=True, nullable=False)
-#     system = Column(BOOLEAN, nullable=False)
-#     value = Column(TEXT, nullable=False)
 
 
 class Users(Base):

@@ -1,14 +1,28 @@
-from os import getenv
-from typing import Optional, Type, List
-from types import TracebackType
 from contextlib import contextmanager
+from os import getenv
+from os.path import isdir
+from os.path import isfile
+from types import TracebackType
+from typing import List
+from typing import Optional
+from typing import Type
 
-from sqlalchemy import *
+from sqlalchemy import create_engine
+from sqlalchemy import Engine
+from sqlalchemy import select  # noqa: F401
+from sqlalchemy import insert  # noqa: F401
+from sqlalchemy import update  # noqa: F401
 from sqlalchemy.engine.row import Row
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database.models import *
+from app.database.models import Actions  # noqa: F401
+from app.database.models import Admins  # noqa: F401
+from app.database.models import Data  # noqa: F401
+from app.database.models import Events  # noqa: F401
+from app.database.models import Ordering  # noqa: F401
+from app.database.models import Users  # noqa: F401
 from app.logger.logger import Logger
 
 logger = Logger()
@@ -22,13 +36,25 @@ class Database:
     __engine: Engine
     __sessionmaker: sessionmaker
 
-    @logger.time_it_info(description="Initialise database connection")
     def __init__(self) -> None:
         if not self.__initialised:
-            self.__path = getenv("DB_PATH", "prod.db")
-            self.__engine = self.__create_engine(path=self.__path)
-            self.__sessionmaker = self.__create_sessionmaker(engine=self.__engine)
-            self.__initialised = True
+            self.__init()
+
+    @logger.time_it_info(description="Initialise database connection")
+    def __init(self):
+        DB_PATH = getenv("DB_PATH")
+        if not DB_PATH:
+            logger.warn("\"DB_PATH\" environment variable not set. Use default value \"prod.db\"")
+            DB_PATH = "prod.db"
+        if not isfile(DB_PATH):
+            logger.info(f"Creating new database file at \"{DB_PATH}\"")
+            open(DB_PATH, "w+").close()
+        if not isfile(DB_PATH) or isdir(DB_PATH):
+            raise IOError(f"File \"{DB_PATH}\" does not exist or it is a directory")
+        self.__path = DB_PATH
+        self.__engine = self.__create_engine(path=self.__path)
+        self.__sessionmaker = self.__create_sessionmaker(engine=self.__engine)
+        self.__initialised = True
 
     def __new__(self, *args, **kwargs):
         if not self.__instance:

@@ -1,10 +1,16 @@
-from typing import Union, List, Tuple
+from typing import List
+from typing import Tuple
+from typing import Union
 
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message
+from aiogram.types import KeyboardButton
+from aiogram.types import Message
+from aiogram.types import ReplyKeyboardMarkup
 
-from app.database.get import get_user, get_admin, get_orderings, get_ordering
-from app.database.models import Data, Events, Actions
+from app.database.get import get_ordering
+from app.database.models import Data
+from app.database.models import Events
 from app.types.type import OrderTypes
+from app.utils import check_tg_user_is_active_admin
 from app.utils import split_buttons
 
 
@@ -29,9 +35,7 @@ async def event_keyboard_markup(
                     )
                 )
     buttons = await split_buttons(buttons, _split_by)
-    user = get_user(tg_id=message.from_user.id)
-    admin = get_admin(user_id=user.id)
-    if admin and admin.active:
+    if check_tg_user_is_active_admin(tg_id=message.from_user.id):
         buttons = [buttons[0], [KeyboardButton(text='Admin')]]
     return ReplyKeyboardMarkup(
         keyboard=buttons,
@@ -57,12 +61,19 @@ async def data_keyboard_markup(
             if index:
                 buttons.append(data.pop(index[0]).name)
     buttons = await split_buttons(buttons, _split_by)
-    user = get_user(tg_id=message.from_user.id)
-    admin = get_admin(user_id=user.id)
-    if admin and admin.active:
-        buttons = [buttons[0], [KeyboardButton(text='Admin')]]
+    # user = get_user(tg_id=message.from_user.id)
+    # admin = get_admin(user_id=user.id)
+    # if admin and admin.active:
+    #     if buttons:
+    #         buttons = [buttons[0], [KeyboardButton(text='Admin')]]
+    #     else:
+    #         buttons = [[KeyboardButton(text='Admin')]]
     return ReplyKeyboardMarkup(
         keyboard=buttons,
         resize_keyboard=True,
         one_time_keyboard=True
     )
+
+
+async def buttons_markup():
+    pass

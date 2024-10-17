@@ -1,7 +1,17 @@
-from flask import Flask, render_template, send_from_directory, redirect, url_for, request
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-import sqlite3
 import os
+import sqlite3
+
+from flask import Flask
+from flask import redirect
+from flask import render_template
+from flask import request
+from flask import send_from_directory
+from flask import url_for
+from flask_login import login_required
+from flask_login import login_user
+from flask_login import LoginManager
+from flask_login import logout_user
+from flask_login import UserMixin
 
 app = Flask(__name__)
 app.secret_key = 'testing_test'  # Замените на ваш секретный ключ

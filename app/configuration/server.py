@@ -1,12 +1,14 @@
 from os import getenv
+from typing import Type # noqa: F401
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot
+from aiogram import Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.base import BaseStorage
 from aiogram_sqlite_storage.sqlitestore import SQLStorage
 
-from app.logger.logger import Logger
 from app.handlers import __handlers__
+from app.logger.logger import Logger
 
 logger = Logger()
 
@@ -28,8 +30,11 @@ class Server:
     @logger.time_it_info(description="Server initialising")
     def __init__(self) -> None:
         if not self.__initialised:
+            TOKEN = getenv("TOKEN")
+            if not TOKEN:
+                raise KeyError('TOKEN environment variable not set')
             self.__bot = self.__prepeare_bot(
-                token=getenv("TOKEN", "7839084211:AAFF-l7XCtMLmAAblyutRIJdXdxHid_vA88")
+                token=TOKEN
             )
             self.__storage = self.__prepeare_storage()
             self.__dispatcher = self.__prepeare_dispatcher(

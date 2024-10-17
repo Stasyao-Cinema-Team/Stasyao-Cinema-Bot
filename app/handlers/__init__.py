@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-from aiogram import Dispatcher, Router
+from aiogram import Dispatcher
+from aiogram import Router
 
-from app.logger.logger import Logger
-
-from .user import router as user_router
 from .admin import router as admin_router
+from .user import router as user_router
+from app.logger.logger import Logger
 
 logger = Logger()
 

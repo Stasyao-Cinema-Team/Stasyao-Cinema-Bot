@@ -1,12 +1,20 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from app.database.get import get_datas, get_ordering, get_data, get_events
+from app.database.get import get_data
+from app.database.get import get_datas
+from app.database.get import get_events
+from app.database.get import get_ordering
 from app.handlers.admin import admin_state_handler
 from app.keyboards.generator import data_keyboard_markup
-from app.types.type import SystemTypes, UserTypes, OrderTypes
-from app.utils import get_next_order, save_content_by_filters, send_data_to_user, prepare_user
 from app.logger.logger import Logger
+from app.types.type import OrderTypes
+from app.types.type import SystemTypes
+from app.types.type import UserTypes
+from app.utils import get_next_order
+from app.utils import prepare_user
+from app.utils import save_content_by_filters
+from app.utils import send_data_to_user
 
 logger = Logger()
 
@@ -29,20 +37,17 @@ async def state_replier(message: Message, state: FSMContext):
 
 
 async def state_handler(message: Message, state: FSMContext):
-    if await prepare_user(message):
-        return
     from app.handlers.user import start
     current_state = await state.get_state()
     if not current_state:
         return await start(message, state)
     states = current_state.split(':')
+    if states[0].lower() == 'admin':
+        return await admin_state_handler(message, state)
     if len(states) == 2:
         event_id, action_id = states
     else:
-        if states[0].lower() == 'admin':
-            return await admin_state_handler(message, state)
-        elif len(states) < 2:
-            return await start(message, state)
+        return await start(message, state)
     if current_state == '0:0':
         allowed_events = get_events(active=True)
         for event in allowed_events:
@@ -57,12 +62,11 @@ async def state_handler(message: Message, state: FSMContext):
         filters.append(type.value)
         if type.value.startswith(UserTypes.text):
             filters.append(UserTypes.text)
-    # filters = [split(r"\(.*\)", data.value)[0] for data in datas]
-    if not filters:
+    if UserTypes.any in filters:
         logger.warn(
             f"No filters setted to {event_id=}, {action_id=}. Allow all."
         )
-        filters.append("text(.*)")
+        filters.append(r"text(.*(.*(\r\n|\r|\n)*.*)*.*)")
         filters.append(UserTypes.text)
         filters.append(UserTypes.animation)
         filters.append(UserTypes.audio)
@@ -75,31 +79,24 @@ async def state_handler(message: Message, state: FSMContext):
         filters.append(UserTypes.poll)
         filters.append(UserTypes.location)
 
-    if message.content_type in filters:
-        if await save_content_by_filters(message=message, filters=filters, action_id=int(action_id)):
+    if message.content_type in filters or filters == []:
+        if await save_content_by_filters(message=message, filters=filters, action_id=int(action_id)) or filters == []:
             if next_action:=await get_next_order(OrderTypes.action, int(event_id), int(action_id)):
                 await state.set_state(f"{event_id}:{next_action}")
             else:
-                await message.answer(
-                    f"Necessary action has ended. Return to the home page.\n"
-                    f"\n"
-                    f"\n"
-                    f"Необходимые действия закончились. Возвращаемся на домашнюю страницу."
-                )
+                # TODO :WARN:
+                #   Add Admin edit ended actions message support
+                # await message.answer(
+                #     f"Necessary action has ended. Return to the home page.\n"
+                #     f"\n"
+                #     f"\n"
+                #     f"Необходимые действия закончились. Возвращаемся на домашнюю страницу."
+                # )
                 return await start(message, state)
-        # else:
-        #     await message.reply(
-        #         f"Error occurred.\n"
-        #         f"Handled content type ({message.content_type}) is not match expected filters ({filters}).\n"
-        #         f"Try again.\n"
-        #         f"\n"
-        #         f"\n"
-        #         f"Произошла ошибка.\n"
-        #         f"Полученный тип сообщения ({message.content_type}) не совпадает с ожидаемыми фильтрами ({filters}).\n"
-        #         f"Попробуйте еще раз."
-        #     )
     return await state_replier(message, state)
 
+    # TODO :WARN:
+    #   Add Admin edit unexpected input message support
     # await message.reply(
     #     f"Error occurred.\n"
     #     f"Handled content type ({message.content_type}) is not match expected filters ({filters}).\n"

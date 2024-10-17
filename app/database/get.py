@@ -1,98 +1,22 @@
 from datetime import datetime
-from typing import List, Tuple, Union, Optional
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
-from app.database.connection import (
-    Database,
-    select,
-    Users,
-    Admins,
-    Events,
-    Actions,
-    Data,
-    cast_data,
-)
+from app.database.models import Actions
+from app.database.models import Admins
+from app.database.connection import cast_data
+from app.database.models import Data
+from app.database.connection import Database
+from app.database.models import Events
+from app.database.connection import select
+from app.database.models import Users
 from app.database.models import Ordering
 from app.logger.logger import Logger
 
 db = Database()
 logger = Logger()
-
-
-# def get_type(
-#         id: Union[
-#             int,
-#             None,
-#         ] = None,
-#         system: Union[
-#             bool,
-#             None,
-#         ] = None,
-#         value: Union[
-#             str,
-#             None,
-#         ] = None,
-# ) -> Union[Types, None]:
-#     no_data = True
-#     with db.context_cursor() as cursor:
-#         stmt = select(Types)
-#         if isinstance(id, int):
-#             stmt = stmt.where(Types.id == id)
-#             no_data = False
-#         if isinstance(system, bool):
-#             stmt = stmt.where(Types.system == system)
-#             no_data = False
-#         if isinstance(value, str):
-#             stmt = stmt.where(Types.value == value)
-#             no_data = False
-#         if no_data:
-#             logger.warn(f"No data given for fetching {Types} data. Return None.")
-#             stmt = stmt.where(True == False)
-#
-#         data = cursor.execute(stmt).fetchone()
-#         try:
-#             return data[0]
-#         except TypeError:
-#             return None
-#
-#
-# def get_types(
-#         id: Union[
-#             int,
-#             List[int],
-#             Tuple[int],
-#             None,
-#         ] = None,
-#         system: Union[
-#             bool,
-#             List[bool],
-#             Tuple[bool],
-#             None,
-#         ] = None,
-#         value: Union[
-#             str,
-#             List[str],
-#             Tuple[str],
-#             None,
-#         ] = None,
-# ) -> Union[Tuple[Types], Tuple[None]]:
-#     no_data = True
-#     with db.context_cursor() as cursor:
-#         stmt = select(Types)
-#         if id is not None:
-#             stmt = stmt.where(Types.id.in_((id,) if isinstance(id, int) else id))
-#             no_data = False
-#         if system is not None:
-#             stmt = stmt.where(Types.system.in_((system,) if isinstance(system, bool) else system))
-#             no_data = False
-#         if value is not None:
-#             stmt = stmt.where(
-#                 Types.value.in_((value,) if isinstance(value, str) else value)
-#             )
-#             no_data = False
-#         if no_data:
-#             logger.warn(f"No data given for fetching {Types} data. Return All.")
-#
-#         return cast_data(cursor.execute(stmt).fetchall())
 
 
 def get_user(
@@ -130,7 +54,7 @@ def get_user(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Users} data.")
-            stmt = stmt.where(True == False)
+            stmt = stmt.where(True == False) # noqa E712
 
         data = cursor.execute(stmt).fetchone()
         try:
@@ -262,7 +186,7 @@ def get_admin(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Admins} data.")
-            stmt = stmt.where(True == False)
+            stmt = stmt.where(True == False) # noqa E712
 
         data = cursor.execute(stmt).fetchone()
         try:
@@ -421,7 +345,7 @@ def get_event(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Events} data.")
-            stmt = stmt.where(True == False)
+            stmt = stmt.where(True == False) # noqa E712
 
         data = cursor.execute(stmt).fetchone()
         try:
@@ -587,7 +511,7 @@ def get_action(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Actions} data.")
-            stmt = stmt.where(True == False)
+            stmt = stmt.where(True == False) # noqa E712
 
         data = cursor.execute(stmt).fetchone()
         try:
@@ -766,7 +690,7 @@ def get_data(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Data} data.")
-            stmt = stmt.where(True == False)
+            stmt = stmt.where(True == False) # noqa E712
 
         data = cursor.execute(stmt).fetchone()
         try:
@@ -891,7 +815,7 @@ def get_ordering(
             no_data = False
         if no_data:
             logger.warn(f"No data given for fetching {Ordering} data.")
-            stmt = stmt.where(True == False)
+            stmt = stmt.where(True == False) # noqa E712
 
     data = cursor.execute(stmt).fetchone()
     try:

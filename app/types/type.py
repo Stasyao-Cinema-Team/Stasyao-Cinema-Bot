@@ -10,6 +10,7 @@ class UserTypes:
     contact = 'contact'
     poll = 'poll'
     location = 'location'
+    any = 'any'
 
 
 class SystemTypes:

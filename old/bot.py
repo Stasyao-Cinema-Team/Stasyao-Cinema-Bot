@@ -1,17 +1,20 @@
-import os
-import time
 import logging
+import os
+import re
 import sqlite3
 from datetime import datetime
+
 import pytz
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot
+from aiogram import Dispatcher
+from aiogram import types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.dispatcher.filters.state import State
+from aiogram.dispatcher.filters.state import StatesGroup
 from aiogram.types import Message
 from aiogram.utils import executor
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-import re
 
 # Настройки
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -94,7 +97,7 @@ async def handle_tickets(message: Message, state: FSMContext):
 
         await state.update_data(tickets=tickets)
         await message.reply(
-            f"Деньги слать вот сюда-то столько то, Жду платежку"
+            "Деньги слать вот сюда-то столько то, Жду платежку"
         )
         await PaymentState.next()
     except ValueError:

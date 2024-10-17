@@ -1,17 +1,20 @@
 """
 Base Logger module.
 """
-
-import os
 import sys
+from functools import wraps
 from inspect import getmodule
-from logging import INFO, NOTSET, FileHandler
+from logging import FileHandler
 from logging import Filter as DefaultFilter
 from logging import Formatter
+from logging import getLogger
+from logging import INFO
 from logging import Logger as DefaultLogger
-from logging import LogRecord, StreamHandler, getLogger
+from logging import LogRecord
+from logging import NOTSET
+from logging import StreamHandler
+from os import getenv
 from time import perf_counter_ns
-from functools import wraps
 
 try:
     from colorlog import ColoredFormatter
@@ -33,9 +36,7 @@ def currentframe():
         try:
             raise Exception
         except Exception:
-            return sys.exc_info()[2].tb_frame.f_back.f_back[
-                0
-            ]  # pyright: ignore[reportOptionalMemberAccess,reportIndexIssue,reportOptionalSubscript]
+            return sys.exc_info()[2].tb_frame.f_back.f_back[0]
 
 
 class Logger:
@@ -113,6 +114,10 @@ class Logger:
                 "aiogram.middlewares",
                 "aiogram.webhook",
                 "aiogram.scene",
+                "flet",
+                "flet.fastapi",
+                "flet_core",
+                "flet_runtime",
             ]
             fix_libs_logger(_fix_libs)
             cls._logger = getLogger("root")
@@ -133,7 +138,7 @@ class Logger:
 
             # Stream log handler.
             cls._stream_handler = StreamHandler()
-            cls._stream_handler.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
+            cls._stream_handler.setLevel(getenv("LOG_LEVEL", "INFO").upper())
             cls._stream_handler.setFormatter(
                 ColoredFormatter(
                     cls._log_format

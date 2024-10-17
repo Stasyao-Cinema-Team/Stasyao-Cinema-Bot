@@ -1,23 +1,46 @@
-from os import getenv, mkdir
+from os import getenv
+from os import mkdir
 from os.path import isdir
 from pathlib import Path
-from re import compile, fullmatch
-
-from typing import Union, List, Tuple, Optional
+from re import compile
+from re import fullmatch
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 from aiogram.filters import CommandObject
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import FSInputFile
+from aiogram.types import KeyboardButton
+from aiogram.types import Message
+from aiogram.types import ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardRemove
 from jinja2 import Template
 
-from app.database.get import get_user, get_event, get_action, get_datas, get_actions, get_events, get_ordering, \
-    get_data, get_orderings
-from app.database.models import Data, Events, Actions, Users, Ordering, Admins
-from app.database.set import set_user, set_data
+from app.database.get import get_action
+from app.database.get import get_actions
+from app.database.get import get_admin
+from app.database.get import get_data
+from app.database.get import get_datas
+from app.database.get import get_event
+from app.database.get import get_events
+from app.database.get import get_ordering
+from app.database.get import get_orderings
+from app.database.get import get_user
+from app.database.models import Actions
+from app.database.models import Admins
+from app.database.models import Data
+from app.database.models import Events
+from app.database.models import Ordering
+from app.database.models import Users
+from app.database.set import set_data
+from app.database.set import set_user
 from app.database.update import update_user
 from app.logger.logger import Logger
-from app.types.type import SystemTypes, UserTypes, OrderTypes
-
+from app.types.type import OrderTypes
+from app.types.type import SystemTypes
+from app.types.type import UserTypes
 
 logger = Logger()
 
@@ -28,6 +51,8 @@ async def prepare_user(message: Message):
     if await tg_username_check(message=message, system_user=system_user):
         return True
     if system_user and system_user.tg_uname != message.from_user.username:
+        # TODO :WARN:
+        #   Add Admin edit changed username message support
         await message.answer(
             f"Looks like you changed your *Telegram username*.\n"
             f"Updating your previous username (_{system_user.tg_uname}_) "
@@ -45,6 +70,8 @@ async def prepare_user(message: Message):
 
 async def tg_username_check(message: Message, system_user: Users):
     if not message.from_user.username:
+        # TODO :WARN:
+        #   Add Admin edit need to set username message support
         await message.answer(
             "You haven't got *Telegram username* installed yet.\n"
             "Install it and try again.\n"
@@ -111,7 +138,7 @@ async def send_data_to_user(
         data: Data,
         keyboard: Optional[ReplyKeyboardMarkup] = None
 ) -> None:
-    if keyboard is None:
+    if not keyboard.keyboard:
         keyboard = ReplyKeyboardRemove()
     if data.type == UserTypes.text:
         await message.answer(
@@ -186,8 +213,14 @@ async def regex_check_text_by_filters(message: Message, filters: List[str]):
 
 @logger.time_it_debug(description="Downloading file")
 async def download_file(message: Message, file_id: str) -> Path:
+    DOWNLOAD_PATH = getenv("DOWNLOAD_PATH")
+    if not DOWNLOAD_PATH:
+        logger.warn("\"DOWNLOAD_PATH\" environment variable not set. Use default value \"./data/\"")
+        DOWNLOAD_PATH = './data/'
+        if not isdir(DOWNLOAD_PATH):
+            mkdir(DOWNLOAD_PATH)
     path = Path(
-        getenv("DOWNLOAD_PATH", './data/'),
+        DOWNLOAD_PATH,
         f"{message.from_user.id}"
     )
     if not isdir(path):
@@ -226,7 +259,6 @@ async def get_next_order(
         if get_next:
             return None
 
-        pass
     return None
 
 
@@ -247,7 +279,7 @@ async def save_content_by_filters(
             if UserTypes.text in filters and await regex_check_text_by_filters(message, filters):
                 set_data(
                     action_id=action_id, create_uid=user.id,
-                    type=message.content_type, value=message.md_text
+                    type=message.content_type, value=message.md_text.replace('\r', '')
                 )
                 saved = True
         case UserTypes.poll:
@@ -256,6 +288,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{message.chat.id}:{message.message_id}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.contact:
             if UserTypes.contact in filters:
@@ -265,6 +302,11 @@ async def save_content_by_filters(
                     type=message.content_type,
                     value=f"{contact.phone_number}:{contact.first_name}:{contact.last_name}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.location:
             if UserTypes.location in filters:
@@ -274,6 +316,11 @@ async def save_content_by_filters(
                     type=message.content_type,
                     value=f"{location.latitude}:{location.longitude}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.photo:
             if UserTypes.photo in filters:
@@ -288,6 +335,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{photo}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.animation:
             if UserTypes.animation in filters:
@@ -296,6 +348,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{animation}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.audio:
             if UserTypes.audio in filters:
@@ -304,6 +361,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{audio}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.document:
             if UserTypes.document in filters:
@@ -312,6 +374,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{document}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.sticker:
             if UserTypes.sticker in filters:
@@ -320,6 +387,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{sticker}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.video:
             if UserTypes.video in filters:
@@ -328,6 +400,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{video}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
         case UserTypes.voice:
             if UserTypes.voice in filters:
@@ -336,6 +413,11 @@ async def save_content_by_filters(
                     action_id=action_id, create_uid=user.id,
                     type=message.content_type, value=f"{voice}"
                 )
+                if message.md_text:
+                    set_data(
+                        action_id=action_id, create_uid=user.id,
+                        type=UserTypes.text, value=message.md_text.replace('\r', '')
+                    )
                 saved = True
     return saved
 
@@ -408,3 +490,18 @@ async def text_templater(message: Message, state: FSMContext, data: Union[str, D
         Data=Data,
         Ordering=Ordering,
     )
+
+
+async def check_tg_user_is_active_admin(tg_id: Union[int, Users.tg_id]):
+    user = get_user(tg_id=tg_id)
+    admin = get_admin(user_id=user.id)
+    if admin and admin.active:
+        return True
+    return False
+
+
+async def check_systen_user_is_active_admin(user_id: Union[int, Users.id]):
+    admin = get_admin(user_id=user_id)
+    if admin and admin.active:
+        return True
+    return False

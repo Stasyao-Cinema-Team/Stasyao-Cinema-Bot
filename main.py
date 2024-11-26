@@ -1,7 +1,9 @@
-from asyncio import run, get_event_loop, gather
+from asyncio import gather
+from asyncio import get_event_loop
+from asyncio import run
 
 from app.configuration.server import Server
-from app.flet.app import start
+from app.flet.flet_app import start
 from app.logger.logger import Logger
 
 logger = Logger()
@@ -15,11 +17,11 @@ async def bot():
     await server.start_server()(server.get_bot())
 
 
-async def web():
+def web():
     """
     Entrypoint web function
     """
-    await start(port=8080)
+    return start()
 
 
 async def main():
@@ -27,8 +29,8 @@ async def main():
     Entrypoint web function
     """
     modules = [
+        web(),
         bot(),
-        web()
     ]
     await gather(*modules)
 

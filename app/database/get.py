@@ -4,15 +4,15 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from app.database.connection import cast_data
+from app.database.connection import Database
+from app.database.connection import select
 from app.database.models import Actions
 from app.database.models import Admins
-from app.database.connection import cast_data
 from app.database.models import Data
-from app.database.connection import Database
 from app.database.models import Events
-from app.database.connection import select
-from app.database.models import Users
 from app.database.models import Ordering
+from app.database.models import Users
 from app.logger.logger import Logger
 
 db = Database()

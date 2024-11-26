@@ -98,7 +98,7 @@ class Server:
     @staticmethod
     @logger.time_it_debug(description="Prepearing aiogram.Dispatcher server's instance")
     def __prepeare_dispatcher(bot: Bot, storage: BaseStorage) -> Dispatcher:
-        return Dispatcher(bot=bot, storage=storage)
+        return Dispatcher(bot=bot, storage=storage, skip_updates=True)
 
     @staticmethod
     @logger.time_it_debug(description="Registering server's handlers")

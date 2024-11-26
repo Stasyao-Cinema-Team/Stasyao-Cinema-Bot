@@ -4,10 +4,11 @@ from os.path import isdir
 from pathlib import Path
 from re import compile
 from re import fullmatch
-from typing import List
+from typing import List, Dict, Any
 from typing import Optional
 from typing import Tuple
 from typing import Union
+from base64 import b64encode
 
 from aiogram.filters import CommandObject
 from aiogram.fsm.context import FSMContext
@@ -16,8 +17,30 @@ from aiogram.types import KeyboardButton
 from aiogram.types import Message
 from aiogram.types import ReplyKeyboardMarkup
 from aiogram.types import ReplyKeyboardRemove
+from flet_core import Card, DataRow, AlertDialog, ControlEvent, Border, BorderSide, Ref, \
+    DataTable, SearchBar, ListTile, TextButton
+from flet_core import Column
+from flet_core import Container
+from flet_core import DataCell
+from flet_core import DataColumn
+from flet_core import Image
+from flet_core import Markdown
+from flet_core import Row as FletRow
+from flet_core import ScrollMode
+from flet_core import Text
+from flet_core.colors import AMBER
+from flet_core.constrained_control import Control
+from flet_core.gradients import Gradient
+from flet_core.icons import SEARCH_OUTLINED, SEARCH
+from flet_core.tooltip import TooltipValue
+from flet_core.types import BorderRadiusValue, OptionalNumber, ControlState, ClipBehavior, OptionalControlEventCallable, \
+    ResponsiveNumber, RotateValue, ScaleValue, OffsetValue, AnimationValue
+from flet_core.text_style import TextStyle
 from jinja2 import Template
+from sqlalchemy import Row as SQLAlchemyRow
+from sqlalchemy import select, join
 
+from app.database.connection import cast_data, Database
 from app.database.get import get_action
 from app.database.get import get_actions
 from app.database.get import get_admin
@@ -505,3 +528,450 @@ async def check_systen_user_is_active_admin(user_id: Union[int, Users.id]):
     if admin and admin.active:
         return True
     return False
+
+
+async def create_data_page(title: str, body: Union[Control, List[Control]], data: Any = None):
+    return FletRow(
+        controls=[
+            Column(
+                horizontal_alignment="stretch",
+                controls=[
+                    Card(
+                        content=Container(
+                            Text(title, weight="bold"),
+                            padding=8
+                        )
+                    ),
+                    FletRow(
+                        controls=body
+                        if isinstance(body, List)
+                        else [body],
+                        scroll=ScrollMode.ADAPTIVE,
+                        adaptive=True,
+                    ),
+                ],
+                expand=True,
+                scroll=ScrollMode.ADAPTIVE,
+                adaptive=True,
+            ),
+        ],
+        expand=True,
+        data=data
+    )
+
+
+async def get_sqlalchemy_row_column_names(
+        sqlalchemy_data: Union[
+            Tuple[
+                Optional[SQLAlchemyRow]
+            ],
+            List[
+                Optional[SQLAlchemyRow]
+            ]
+        ],
+        hide_columns: Optional[list] = None,
+) -> List[Optional[str]]:
+    if not hide_columns:
+        hide_columns = []
+
+    columns = []
+    for row in sqlalchemy_data:
+        if isinstance(row, SQLAlchemyRow):
+            for column in row._fields:
+                if column not in columns and column not in hide_columns:
+                    columns.append(column)
+        else:
+            for column in row.__table__.columns._all_columns:
+                if column.key not in columns and column.key not in hide_columns:
+                    columns.append(column.key)
+    return columns
+
+
+async def get_datacolumns_by_names(
+        names: List[
+            Optional[str]
+        ],
+        replace_names: Optional[dict] = None,
+) -> List[Optional[DataColumn]]:
+    if not replace_names:
+        replace_names = {}
+
+    datacolumns = []
+    for name in names:
+        datacolumns.append(
+            DataColumn(
+                label=Text(
+                    name
+                    if name not in replace_names.keys()
+                    else replace_names[name],
+                ),
+            )
+        )
+    return datacolumns
+
+
+async def get_datarows_by_column_names(
+        sqlalchemy_data: Union[
+            Tuple[
+                Optional[SQLAlchemyRow]
+            ],
+            List[
+                Optional[SQLAlchemyRow]
+            ]
+        ],
+        column_names: List[Optional[str]],
+):
+    datarows = []
+    for row in sqlalchemy_data:
+        datarow = []
+        for column in column_names:
+            if column == 'value':
+                if row.__getattribute__('type') == 'text':
+                    datarow.append(
+                        DataCell(
+                            Markdown(
+                                value=row.__getattribute__(column),
+                            )
+                        )
+                    )
+                elif row.__getattribute__('type') in ['photo', 'sticker']:
+                    with open(file=row.__getattribute__(column), mode='rb') as file:
+                        datarow.append(
+                            DataCell(
+                                Image(
+                                    src_base64=b64encode(file.read()).decode('ascii'),
+                                    # fit=ImageFit.FILL,
+                                    # repeat=ImageRepeat.NO_REPEAT,
+                                    expand=True
+                                ),
+                                on_tap=lambda event: event.page.open(
+                                    AlertDialog(
+                                        title=Text("Showing Image"),
+                                        content=event.control.content
+                                    )
+                                ),
+                            )
+                        )
+                else:
+                    datarow.append(
+                        DataCell(
+                            Text(
+                                value=row.__getattribute__(column)
+                            ),
+                        )
+                    )
+            else:
+                datarow.append(
+                    DataCell(
+                        Text(
+                            value=row.__getattribute__(column)
+                        )
+                    )
+                )
+        datarows.append(
+            DataRow(
+                cells=datarow
+            )
+        )
+    return datarows
+
+
+async def get_datatable_by_sqlalchemy_data(
+        sqlalchemy_data: Union[
+            Tuple[
+                Optional[SQLAlchemyRow]
+            ],
+            List[
+                Optional[SQLAlchemyRow]
+            ]
+        ],
+        hide_columns: Optional[list] = None,
+        replace_names: Optional[dict] = None,
+        sort_ascending: Optional[bool] = None,
+        show_checkbox_column: Optional[bool] = None,
+        sort_column_index: Optional[int] = None,
+        show_bottom_border: Optional[bool] = None,
+        border: Optional[Border] = None,
+        border_radius: BorderRadiusValue = None,
+        horizontal_lines: Optional[BorderSide] = None,
+        vertical_lines: Optional[BorderSide] = None,
+        checkbox_horizontal_margin: OptionalNumber = None,
+        column_spacing: OptionalNumber = None,
+        data_row_color: Union[None, str, Dict[ControlState, str]] = None,
+        data_row_min_height: OptionalNumber = None,
+        data_row_max_height: OptionalNumber = None,
+        data_text_style: Optional[TextStyle] = None,
+        bgcolor: Optional[str] = None,
+        gradient: Optional[Gradient] = None,
+        divider_thickness: OptionalNumber = None,
+        heading_row_color: Union[None, str, Dict[ControlState, str]] = None,
+        heading_row_height: OptionalNumber = None,
+        heading_text_style: Optional[TextStyle] = None,
+        horizontal_margin: OptionalNumber = None,
+        clip_behavior: Optional[ClipBehavior] = None,
+        on_select_all: OptionalControlEventCallable = None,
+        #
+        # ConstrainedControl
+        #
+        ref: Optional[Ref] = None,
+        key: Optional[str] = None,
+        width: OptionalNumber = None,
+        height: OptionalNumber = None,
+        left: OptionalNumber = None,
+        top: OptionalNumber = None,
+        right: OptionalNumber = None,
+        bottom: OptionalNumber = None,
+        expand: Union[None, bool, int] = None,
+        expand_loose: Optional[bool] = None,
+        col: Optional[ResponsiveNumber] = None,
+        opacity: OptionalNumber = None,
+        rotate: RotateValue = None,
+        scale: ScaleValue = None,
+        offset: OffsetValue = None,
+        aspect_ratio: OptionalNumber = None,
+        animate_opacity: AnimationValue = None,
+        animate_size: AnimationValue = None,
+        animate_position: AnimationValue = None,
+        animate_rotation: AnimationValue = None,
+        animate_scale: AnimationValue = None,
+        animate_offset: AnimationValue = None,
+        on_animation_end: OptionalControlEventCallable = None,
+        tooltip: TooltipValue = None,
+        visible: Optional[bool] = None,
+        disabled: Optional[bool] = None,
+        data: Any = None,
+):
+    columns = await get_sqlalchemy_row_column_names(
+        sqlalchemy_data=sqlalchemy_data,
+        hide_columns=hide_columns
+    )
+    datacolumns = await get_datacolumns_by_names(
+        names=columns,
+        replace_names=replace_names
+    )
+    datarows = await get_datarows_by_column_names(
+        sqlalchemy_data=sqlalchemy_data,
+        column_names=columns
+    )
+    if columns and datacolumns and datarows:
+        return DataTable(
+            columns=datacolumns,
+            rows=datarows,
+            sort_ascending=sort_ascending,
+            show_checkbox_column=show_checkbox_column,
+            sort_column_index=sort_column_index,
+            show_bottom_border=show_bottom_border,
+            border=border,
+            border_radius=border_radius,
+            horizontal_lines=horizontal_lines,
+            vertical_lines=vertical_lines,
+            checkbox_horizontal_margin=checkbox_horizontal_margin,
+            column_spacing=column_spacing,
+            data_row_color=data_row_color,
+            data_row_min_height=data_row_min_height,
+            data_row_max_height=data_row_max_height,
+            data_text_style=data_text_style,
+            bgcolor=bgcolor,
+            gradient=gradient,
+            divider_thickness=divider_thickness,
+            heading_row_color=heading_row_color,
+            heading_row_height=heading_row_height,
+            heading_text_style=heading_text_style,
+            horizontal_margin=horizontal_margin,
+            clip_behavior=clip_behavior,
+            on_select_all=on_select_all,
+            ref=ref,
+            key=key,
+            width=width,
+            height=height,
+            left=left,
+            top=top,
+            right=right,
+            bottom=bottom,
+            expand=expand,
+            expand_loose=expand_loose,
+            col=col,
+            opacity=opacity,
+            rotate=rotate,
+            scale=scale,
+            offset=offset,
+            aspect_ratio=aspect_ratio,
+            animate_opacity=animate_opacity,
+            animate_size=animate_size,
+            animate_position=animate_position,
+            animate_rotation=animate_rotation,
+            animate_scale=animate_scale,
+            animate_offset=animate_offset,
+            on_animation_end=on_animation_end,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            data=data
+        )
+    return Text("No Data")
+
+
+async def generate_events_menu_layout():
+    event_pages = []
+
+    db = Database()
+    with db.context_cursor() as cursor:
+        stmt = select(
+            Events
+        ).where(
+            Events.id != 0,
+        )
+        events = cast_data(cursor.execute(stmt).fetchall())
+
+    async def get_event_data(event: Events):
+        db = Database()
+        with db.context_cursor() as cursor:
+            stmt = select(
+                Actions.name,
+                Users.tg_id,
+                Users.tg_uname,
+                Data.type,
+                Data.active,
+                Data.value,
+            ).select_from(
+                join(
+                    Data,
+                    Users,
+                    Data.create_uid == Users.id
+                ).join(
+                    Actions,
+                    Data.action_id == Actions.id
+                ).join(
+                    Events,
+                    Events.id == Actions.event_id
+                )
+            ).where(
+                Data.active == True,
+                Data.system == False,
+                Events.id == event.id
+            )
+
+        return cast_data(cursor.execute(stmt).fetchall(), is_table=False)
+
+    async def get_event_users(event: Events):
+        from app.configuration.server import Server
+
+        data = await get_event_data(event)
+
+        data_users = []
+        for row in data:
+            if row.tg_id not in data_users:
+                data_users.append(row.tg_id)
+
+        bot = Server().get_bot()
+        users = [await bot.get_chat(chat_id=data_user) for data_user in data_users]
+        usernames = [user.username for user in users]
+
+        return usernames
+
+    async def get_user_data(user: Optional[Users.tg_uname], event: Events):
+        full_data = await get_event_data(event)
+        user_data = []
+        for row in full_data:
+            if row.tg_uname == user or not user:
+                user_data.append(row)
+        return user_data
+
+    async def update_datatable_data(e: ControlEvent):
+        parent_controls: list = e.control.parent.controls
+        event: Events = e.control.parent.parent.parent.parent.data
+        selected_user: Users.tg_uname = None
+        for i in parent_controls:
+            if isinstance(i, SearchBar):
+                selected_user = i.data
+        for i in parent_controls:
+            if isinstance(i, DataTable):
+                _index = parent_controls.index(i)
+                parent_controls.remove(i)
+                parent_controls.insert(
+                    _index,
+                    await get_datatable_by_sqlalchemy_data(
+                        sqlalchemy_data=await get_user_data(user=selected_user, event=event)
+                        if select_user
+                        else await get_event_data(event=event),
+                        hide_columns=['type', 'tg_id'],
+                        replace_names={
+                            "name": "Event | Ивент",
+                            "name_1": "Question | Вопрос",
+                            "tg_uname": "Telegram Tag | Тег в Телеграм",
+                            "value": "Data by User | Данные от Пользователя",
+                            "active": "Active Data | Данные Активны",
+                        },
+                        data_row_max_height=100,
+                        data_row_min_height=20
+                    )
+                )
+        await e.page.update_async()
+
+    async def select_user(event: ControlEvent):
+        search_bar = event.control.parent
+        search_bar.data = event.control.data
+        search_bar.close_view(event.control.data)
+
+    async def get_searchbar(event: Events):
+        return SearchBar(
+            view_elevation=4,
+            divider_color=AMBER,
+            bar_hint_text="Search User | Поиск пользователя",
+            view_hint_text="Select User | Выберите пользователя",
+            on_tap=lambda e: e.control.open_view(),
+            controls=[
+                ListTile(
+                    title=Text(value=user),
+                    on_click=select_user,
+                    data=user
+                )
+                for user in await get_event_users(event)
+            ]
+        )
+
+    for event in events:
+
+        event_pages.append(
+            (
+                dict(
+                    icon=SEARCH_OUTLINED,
+                    selected_icon=SEARCH,
+                    label=f"{event.id}: {event.name}"
+                    if event.active
+                    else f"{event.id}: {event.name}\n[Deactivated | Отколючен]",
+                ),
+                await create_data_page(
+                    title=f"{event.id}: {event.name}"
+                     if event.active
+                     else f"{event.id}: {event.name}\n"
+                          f"[Deactivated | Отколючен]",
+                    body=Column(
+                        controls=[
+                            await get_searchbar(event),
+                            TextButton(
+                                text="Update Data",
+                                on_click=update_datatable_data
+                            ),
+                            await get_datatable_by_sqlalchemy_data(
+                                sqlalchemy_data=await get_event_data(event=event),
+                                hide_columns=['type', 'tg_id'],
+                                replace_names={
+                                    "name": "Event | Ивент",
+                                    "name_1": "Question | Вопрос",
+                                    "tg_uname": "Telegram Tag | Тег в Телеграм",
+                                    "value": "Data by User | Данные от Пользователя",
+                                    "active": "Active Data | Данные Активны",
+                                },
+                                data_row_max_height=100,
+                                data_row_min_height=20
+                            )
+                        ],
+                        adaptive=True,
+                    ),
+                    data=event
+                ),
+            )
+        )
+
+    return event_pages

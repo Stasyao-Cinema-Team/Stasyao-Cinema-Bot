@@ -118,6 +118,7 @@ class Logger:
                 "flet.fastapi",
                 "flet_core",
                 "flet_runtime",
+                "multipart.multipart",
             ]
             fix_libs_logger(_fix_libs)
             cls._logger = getLogger("root")

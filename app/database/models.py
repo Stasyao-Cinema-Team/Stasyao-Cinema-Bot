@@ -9,7 +9,6 @@ from sqlalchemy.dialects.sqlite import TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
-metadata = Base.metadata
 
 
 class Users(Base):

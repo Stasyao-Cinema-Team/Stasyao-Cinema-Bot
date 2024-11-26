@@ -35,8 +35,8 @@ async def event_keyboard_markup(
                     )
                 )
     buttons = await split_buttons(buttons, _split_by)
-    if check_tg_user_is_active_admin(tg_id=message.from_user.id):
-        buttons = [buttons[0], [KeyboardButton(text='Admin')]]
+    # if check_tg_user_is_active_admin(tg_id=message.from_user.id):
+    #     buttons = [buttons[0], [KeyboardButton(text='Admin')]]
     return ReplyKeyboardMarkup(
         keyboard=buttons,
         resize_keyboard=True,

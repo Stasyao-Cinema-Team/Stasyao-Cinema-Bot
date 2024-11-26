@@ -9,8 +9,8 @@ from typing import Type
 
 from sqlalchemy import create_engine
 from sqlalchemy import Engine
-from sqlalchemy import select  # noqa: F401
 from sqlalchemy import insert  # noqa: F401
+from sqlalchemy import select  # noqa: F401
 from sqlalchemy import update  # noqa: F401
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
@@ -111,11 +111,14 @@ class Database:
         )
 
 
-def cast_data(data: List[Row]):
+def cast_data(data: List[Row], is_table: bool = True):
     if len(data) == 0:
         return []
     result = []
     for row in data:
         if isinstance(row, Row):
-            result.append(row[0])
+            if is_table:
+                result.append(row[0])
+            elif not is_table:
+                result.append(row)
     return result

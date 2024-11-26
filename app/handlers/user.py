@@ -1,3 +1,4 @@
+from os import getenv
 from re import compile
 
 from aiogram import Router
@@ -53,6 +54,9 @@ async def start(message: Message, state: FSMContext):
 
 @router.message(Command(compile(r".*")))
 async def commands(message: Message, state: FSMContext):
+    if str(getenv("ONLY_ADMINS_MODE")).lower() == ("true", "1", "yes") and not await check_tg_user_is_active_admin(message.from_user.id):
+        return
+
     from app.handlers.admin import admin
     if await prepare_user(message=message):
         return
@@ -84,6 +88,9 @@ async def commands(message: Message, state: FSMContext):
 
 @router.message()
 async def common_message(message: Message, state: FSMContext):
+    if str(getenv("ONLY_ADMINS_MODE")).lower() in ("true", "1", "yes") and not await check_tg_user_is_active_admin(message.from_user.id):
+        return
+
     from app.handlers.admin import admin_state_handler
     if await prepare_user(message=message):
         return
